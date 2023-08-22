@@ -30,13 +30,21 @@ class users_data(db.Model):
 def make_salt():
     return ''.join(random.choice(string.ascii_letters) for x in range(5))
 
-def make_pw_hash(username, password):
-    salt = make_salt()
-    HASH = hashlib.sha256(username.encode('utf-8') + password.encode('utf-8') + salt.encode('utf-8')).hexdigest()
-    return HASH + ',' + salt
+def make_pw_hash(name, pw, salt=None):
+    if not salt:
+        salt = make_salt()
+    h = hashlib.sha256(name.encode('utf-8') + pw.encode('utf-8') + salt.encode('utf-8')).hexdigest()
+    return '%s,%s' % (h, salt)
+
+def valid_pw(name, pw, h):
+    salt = h.split(',')[1]
+    input_pw = make_pw_hash(name, pw, salt)
+    if h == input_pw:
+        return True
+    return False
 
 def hash_str(s):
-    return hmac.new(SECRET.encode('utf-8'), s.encode('utf-8'), digestmod=hashlib.md5).hexdigest()
+    return hmac.new(SECRET.encode('utf-8'), s.encode('utf-8'), digestmod=hashlib.sha256).hexdigest()
 
 def make_secure_val(s):
     return "%s,%s" % (s, hash_str(s))
@@ -104,6 +112,25 @@ def form():
                 return response
             else:
                 return t.render(invalid_username="User already exists", user_name=user_name)
+    return t.render()
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    t = jinja_env.get_template("login.html")
+    if request.method == 'POST':
+        user_name = request.form["username"] 
+        user_password = request.form["password"]
+        if users_data.query.filter_by(username=user_name).first().username:
+            h = users_data.query.filter_by(username=user_name).first().password
+            if valid_pw(user_name, user_password, h):
+                user_id = users_data.query.filter_by(username=user_name).first().id
+                new_cookie_val = make_secure_val(str(user_id))
+                response = redirect("/welcome")
+                response.headers['Set-Cookie'] = 'user_id=%s' % new_cookie_val
+                return response
+            else:
+                print("Right")
+                return t.render(invalid_login="Invalid login!")
     return t.render()
 
 @app.route("/welcome")
