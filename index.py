@@ -103,10 +103,13 @@ def welcome_page():
     t = jinja_env.get_template("welcome.html")
  
     user_id_cookie_str = request.cookies.get('user_id')
+    print(user_id_cookie_str)
     if user_id_cookie_str:
         cookie_val = check_secure_val(user_id_cookie_str)
         if cookie_val:
             user_id = int(cookie_val)
+        else:
+            return redirect("/signup")
     username = users_data.query.filter_by(id=user_id).first().username
     return t.render(username=username)
 
