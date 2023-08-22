@@ -129,25 +129,30 @@ def login():
                 response.headers['Set-Cookie'] = 'user_id=%s' % new_cookie_val
                 return response
             else:
-                print("Right")
                 return t.render(invalid_login="Invalid login!")
     return t.render()
 
 @app.route("/welcome")
 def welcome_page():
     t = jinja_env.get_template("welcome.html")
- 
-    user_id_cookie_str = request.cookies.get('user_id')
-    print(user_id_cookie_str)
-    if user_id_cookie_str:
-        cookie_val = check_secure_val(user_id_cookie_str)
-        if cookie_val:
-            user_id = int(cookie_val)
-        else:
-            return redirect("/signup")
-    username = users_data.query.filter_by(id=user_id).first().username
-    return t.render(username=username)
+    
+    if request.cookies.get('user_id'):
+        user_id_cookie_str = request.cookies.get('user_id')
+        if user_id_cookie_str:
+            cookie_val = check_secure_val(user_id_cookie_str)
+            if cookie_val:
+                user_id = int(cookie_val)
+            else:
+                return redirect("/signup")
+        username = users_data.query.filter_by(id=user_id).first().username
+        return t.render(username=username)
+    return redirect("/login")
 
+@app.route("/logout")
+def logout():
+    response = redirect("/login")
+    response.set_cookie('user_id', '', expires=0)
+    return response
 
 if __name__ == "__main__":
     app.run()
