@@ -7,6 +7,7 @@ import jinja2
 import hashlib
 import hmac
 import random
+import string
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users_date.db'
@@ -19,13 +20,20 @@ jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), a
 USER_NAME = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 USER_PASSWORD = re.compile(r"^.{3,20}$")
 USER_EMAIL = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
-SECRET = 'imsosecret'
+SECRET = "imsosecret"
 
 class users_data(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     username = db.Column(db.String(50), unique = True)
     password = db.Column(db.String(50), unique = False)
 
+def make_salt():
+    return ''.join(random.choice(string.ascii_letters) for x in range(5))
+
+def make_pw_hash(username, password):
+    salt = make_salt()
+    HASH = hashlib.sha256(username.encode('utf-8') + password.encode('utf-8') + salt.encode('utf-8')).hexdigest()
+    return HASH + ',' + salt
 
 def hash_str(s):
     return hmac.new(SECRET.encode('utf-8'), s.encode('utf-8'), digestmod=hashlib.md5).hexdigest()
@@ -86,7 +94,7 @@ def form():
             return t.render(invalid_email="Email is invalid!", user_email=user_email, user_name=user_name)
         else:
             if not users_data.query.filter(users_data.username == user_name).all():
-                user_data = users_data(username=user_name, password=user_password)
+                user_data = users_data(username=user_name, password=make_pw_hash(user_name, user_password))
                 db.session.add(user_data)
                 db.session.commit()
                 user_id = str(user_data.id)
